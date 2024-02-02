@@ -1,0 +1,182 @@
+#!/bin/bash
+
+gerritroot="/home/sjy/gerrit/review_site/git"
+
+git config --global --add safe.directory $gerritroot
+
+while [ "$1" != "" ];do
+
+  case $1 in
+
+    --project )
+
+    shift
+
+    project=$1;;
+
+    --refname )
+
+    shift
+
+    refname=$1;;
+
+    --oldrev )
+
+    shift
+
+    oldrev=$1;;
+
+    --uploader-username )
+
+    shift
+
+    username=$1;;
+
+    --newrev )
+
+    shift
+
+    newrev=$1;;
+
+    * )
+
+    shift;;
+
+  esac
+
+done
+
+
+
+function check_no_chinese() {
+
+  echo "Start to check no chinese!"
+
+  line2=$(echo "$message"|sed -n '2p')
+
+  if [[ ! $line2 =~ ^$ ]];then echo -e "\033[31m Message line2 not blank, please add blank line.\033[m" && exit 1; fi
+
+  chinese=$(echo "$message"|awk '{print gensub(/[!-~]/,"","g",$0)}'|tr -d "[:blank:]")
+
+  echo "Chinese is ==$chinese=="
+
+  if [ "$chinese" == "" ];then
+
+    echo "Good, all english!"
+
+  else
+
+    echo -e "\033[31m Message have chinese, please use (git commit --amend) to change.\033[m" && exit 1
+
+  fi
+
+}
+
+
+
+function check_msg_for_bdc() {
+
+  echo "Start to check msg for bdc!"
+
+  date_pattern='^(No\.([0-9]+(\s))*)*((feat)|(fix)|(task)|(docs)|(style)|(test)|(refactor)|(chore)|(Revert)|(Merge)).+$'
+
+  echo "$message" | while read i
+
+  do
+
+    if [[ $i =~  $date_pattern  ]] ; then
+
+      echo "Check Success!"
+
+      continue
+
+    elif [[ $i =~ ^$ ]]
+
+    then
+
+      echo "Check Success!"
+
+      continue
+
+    elif [[ $i =~ Version.+ ]]
+
+    then
+
+      echo "Check Success!"
+
+      break
+
+    elif [[ $i =~ This.* ]]
+
+    then
+
+      echo "Check Success!"
+
+      break
+
+    else
+
+      echo -e "\033[31m $i -> Check failed! \033[m"
+
+      echo "Run 'git commit --amend' to modify the commit-msg!"
+
+      exit 1
+
+    fi
+
+  done
+
+}
+
+
+
+function check_msg_for_common() {
+
+  echo "Start to check msg for common!"
+
+  subject=$(echo "$message"|head -n 1)
+
+  echo "subject is $subject" >> /home/sjy/gerrit/review_site/hooks/sjylog-1-23
+
+  echo 	"Subject is $subject"
+
+  if echo "$subject" |grep -E "^[Revert^12345 ]*\"*\[(Bug|Task)\s* #[0-9]{5},*[,0123456789 ]*\s*\]\s*[A-Z].*\.\"*$";then
+
+    echo "Subject check success."
+
+  else
+
+    echo -e "\033[31m Subject check fail.\033[m" && exit 1
+
+  fi
+
+}
+
+
+
+ignoreCommiter="liujinyou|shijinyu|jinli|chenpeijing"
+
+echo $username |grep -qE $ignoreCommiter && exit 0
+
+
+
+message=$(git --git-dir $gerritroot/$project.git cat-file commit  $newrev|sed '1,/^$/d'|sed '/Change-Id/d')
+
+echo "message is $message" > /home/sjy/gerrit/review_site/hooks/sjylog-1-23
+
+check_no_chinese
+
+#if [[ $project =~ "BDC" ]];then
+
+ # echo "This is BDC project."
+
+ # check_msg_for_bdc
+
+#else
+
+ # echo "This is not BDC project."
+
+ # check_msg_for_common
+
+#fi
+
