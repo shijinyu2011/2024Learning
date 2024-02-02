@@ -154,7 +154,7 @@ function check_msg_for_common() {
 
 
 
-ignoreCommiter="liujinyou|shijinyu|jinli|chenpeijing"
+ignoreCommiter="shijinyu|scm"
 
 echo $username |grep -qE $ignoreCommiter && exit 0
 
