@@ -1,0 +1,78 @@
+
+
+$ cat gerrit.log
+
+sjy@sjy-VirtualBox:~/gerrit/review_site_apache$ ps -aux|grep gerrit
+root       15913  1.7  4.8 4047340 351916 ?      Sl   16:37   0:50 GerritCodeReview -Dflogger.backend_factory=com.google.common.flogger.backend.log4j.Log4jBackendFactory#getInstance -Dflogger.logging_context=com.google.gerrit.server.logging.LoggingContext#getInstance -jar /home/sjy/gerrit/review_site_apache/bin/gerrit.war daemon -d /home/sjy/gerrit/review_site_apache --run-id=1704443821.15854
+sjy        18082  0.0  0.0  12296  2816 pts/1    S+   17:24   0:00 grep --color=auto gerrit
+sjy@sjy-VirtualBox:~/gerrit/review_site_apache$ ps -aux|grep nginx
+root       15762  0.0  0.0  55200  2236 ?        Ss   16:34   0:00 nginx: master process /usr/sbin/nginx -g daemon on; master_process on;
+root       15763  0.0  0.0  55868  6204 ?        S    16:34   0:00 nginx: worker process
+sjy        18084  0.0  0.0  12296  2816 pts/1    S+   17:24   0:00 grep --color=auto nginx
+sjy@sjy-VirtualBox:~/gerrit/review_site_apache$
+=======================================================================================
+sjy@sjy-VirtualBox:~/gerrit/review_site_apache$ ls
+bin  cache  data  db  etc  git  index  lib  logs  plugins  static  tmp
+sjy@sjy-VirtualBox:~/gerrit/review_site_apache$ cat etc/gerrit.config
+[gerrit]
+        basePath = git
+        canonicalWebUrl = http://10.0.2.15:8001/
+        serverId = 8641b23f-a259-44a0-ad73-1f7bc723d5eb
+[container]
+        javaOptions = "-Dflogger.backend_factory=com.google.common.flogger.backend.log4j.Log4jBackendFactory#getInstance"
+        javaOptions = "-Dflogger.logging_context=com.google.gerrit.server.logging.LoggingContext#getInstance"
+        user = root
+        javaHome = /usr/lib/jvm/java-17-openjdk-amd64
+[index]
+        type = lucene
+[auth]
+        type = HTTP
+[receive]
+        enableSignedPush = false
+[sendemail]
+        smtpServer = localhost
+[sshd]
+        listenAddress = *:29418
+[httpd]
+        listenUrl = http://10.0.2.15:8001/
+[cache]
+        directory = cache
+sjy@sjy-VirtualBox:~/gerrit/review_site_apache$
+
+
+
+=======================================================================================
+sjy@sjy-VirtualBox:~/gerrit/review_site_apache$ cat /etc/nginx/conf.d/gerrit.conf
+server{
+
+        listen 80;
+        server_name 10.0.2.15;
+
+
+        location  / {
+
+                auth_basic "Welcome to gerrit code review site!";
+                auth_basic_user_file /home/sjy/gerrit/review_site_apache/etc/passwd;
+                proxy_pass http://10.0.2.15:8001/;
+                proxy_set_header X-Forwarded-For $remote_addr;
+                proxy_set_header Host $host;
+
+}
+
+
+
+}
+
+sjy@sjy-VirtualBox:~/gerrit/review_site_apache$
+
+
+==========================================================================================================
+
+login url: http://10.0.2.15/dashboard/self
+htpasswd -b passwd admin admin
+admin:admin  shijinyu:shijinyu
+
+
+========================================================files downloads ====================
+ 
+pic1
