@@ -1,0 +1,44 @@
+
+
+Python:
+
+>>> time.strftime('%Y-%m-%d',time.localtime(time.time()))
+'2023-11-24'
+>>> time.time()
+1700813426.8457386
+>>> time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
+'2023-11-24 16:11:10'
+>>> time.time()
+1700813475.634728
+>>> time.mktime(time.strptime("2023-11-24 16:11:10",'%Y-%m-%d %H:%M:%S'))
+1700813470.0
+>>> time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time()))
+'2023-11-24 16:13:03'
+>>> time.mktime(time.strptime("2023-11-24 16:13:03",'%Y-%m-%d %H:%M:%S'))
+1700813583.0
+>>> time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(1700813583.0))
+'2023-11-24 16:13:03'
+>>> time.strftime('%Y-%m-%d',time.localtime(1700813583.0))
+'2023-11-24'
+
+scm@linux:~$ date --date="2023-11-23 16:53:00" +%s
+1700729580
+
+scm@linux:~$ date --date='@1700729580'
+2023年 11月 23日 星期四 16:53:00 CST
+scm@linux:~$
+
+
+10.0.7.219:8080/job/WEEKLY-GWM_HT01-AVM_SOC_DEV/16/api/json?pretty=true
+number": 16,
+    "queueId": 68303,
+    "result": "SUCCESS",
+    "timestamp": 1700725732070,
+    "url": "http://10.0.7.219:8080/job/WEEKLY-GWM_HT01-AVM_SOC_DEV/16/",
+"builtOn": "Linux_Build",
+
+$ date --date='@$ timestamp/1000'
+
+
+
+
