@@ -1,0 +1,58 @@
+import groovy.util.XmlSlurper
+import groovy.xml.XmlUtil
+
+def createBranch(String name, String rev){
+       sh """#!/bin/bash -x
+            echo "sh name is $name"
+            echo "sh rev is $rev"
+        """
+}
+
+@NonCPS
+Map  getNodeinfo(def file){
+    Map revManifest = [:]
+    def xml = new XmlSlurper().parseText(file)
+    
+    def allnodename = xml.children().collect{node-> node.name()}
+    echo "all node name is $allnodename"
+    def nodes = xml.project
+    def allnodes = xml.children()
+    echo "888888888888888888888888888"
+    allnodes.each{ node ->
+       def txt = node.attributes()
+       String name = txt.name.toString()
+       String rev = txt.revision.toString()
+       echo "node attri name is $name"
+       echo "node attri rev is $rev"
+       echo "node.name is ${node.name()}"
+       if (name.contains("AVM/IOC/project")){
+           def copyfile = node.children().collect{nodeson->nodeson.attributes()}
+           echo "copyfile is $copyfile"
+           allnodes.pop(node)
+       }
+    }
+    String out = XmlUtil.serialize(allnodes)
+    sh "echo $out >sjylog"
+}
+
+node("Linux_Build"){
+def xmlFile = readFile "/home/scm/Public/IOC.xml"
+String GERRIT_CHANGE_SUBJECT = "Issue: [Task #36228][DVR&APP]"
+ bugIDs = GERRIT_CHANGE_SUBJECT.split("]").first().split("#").last()
+ echo "bugid is ${bugIDs.split(',')} "
+//getNodeinfo(xmlFile)
+
+/*
+def xml = new XmlSlurper().parseText(xmlFile)
+xml.depthFirst().each{node ->
+    nodename = node.name()
+    nodeattributes = node.attributes()
+    nodeContent = node.text()
+    echo "node name is $nodename"
+    echo "node attrigutes is $nodeattributes"
+    echo "node content is $nodeContent"
+    
+}
+*/
+
+}
