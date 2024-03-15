@@ -1,4 +1,8 @@
 1. bar chart: jenkins (x:build_id,y:duration)
+
+select * from (SELECT duration, build_id FROM jenkins.jobsInfo WHERE job_name = 'monitor_job_result' ORDER BY build_id desc LIMIT 10 ) 
+as sub_query ORDER by build_id asc;
+
 mysql> select * from jobsInfo  where job_name="monitor_job_result" ORDER BY build_id desc LIMIT 2;
 
 +------+--------------------+----------+---------+---------------------+---------------------+----------+
@@ -46,4 +50,58 @@ mysql> desc jobsInfo;
 
 select * from (SELECT duration, build_id FROM jenkins.jobsInfo WHERE job_name = 'monitor_job_result' ORDER BY build_id desc LIMIT 10 ) as sub_query ORDER by build_id asc;
 
-2.
+******************************************************************************
+********************************************************************************
+2. add time series, look at user login time
+SELECT  $__timeGroup(logintime,'10m') as time_sec, count(user) as user1
+  FROM jenkins.operate_time
+  WHERE $__timeFilter(logintime) AND user = "user1"
+  GROUP BY time_sec;
+mysql> desc operate_time;
+
++-----------+-------------+------+-----+---------+----------------+
+
+| Field     | Type        | Null | Key | Default | Extra          |
+
++-----------+-------------+------+-----+---------+----------------+
+
+| id        | int         | NO   | PRI | NULL    | auto_increment |
+
+| place     | varchar(50) | YES  |     | NULL    |                |
+
+| user      | varchar(50) | YES  |     | NULL    |                |
+
+| logintime | datetime    | YES  |     | NULL    |                |
+
+| operate   | varchar(50) | YES  |     | NULL    |                |
+
++-----------+-------------+------+-----+---------+----------------+
+
+5 rows in set (0.01 sec)
+
+
+
+mysql> select * from operate_time order by id limit 2;
+
++----+----------+-------+---------------------+---------+
+
+| id | place    | user  | logintime           | operate |
+
++----+----------+-------+---------------------+---------+
+
+|  1 | shanghai | user1 | 2024-03-12 11:29:15 | reading |
+
+|  2 | shanghai | user1 | 2024-03-12 11:32:09 | reading |
+
++----+----------+-------+---------------------+---------+
+
+2 rows in set (0.00 sec)
+
+
+
+mysql> 
+***************************************************************************************************
+***************************************************************************************************
+
+
+
