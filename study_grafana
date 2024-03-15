@@ -1,0 +1,4 @@
+bar chart: jenkins (x:build_id,y:duration)
+
+select * from (SELECT duration, build_id FROM jenkins.jobsInfo WHERE job_name = 'monitor_job_result' ORDER BY build_id desc LIMIT 10 ) as sub_query ORDER by build_id asc;
+
