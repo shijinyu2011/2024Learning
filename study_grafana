@@ -186,8 +186,23 @@ mysql> desc slaves;
 mysql> 
 ***********************************************************************************************
 ***********************************************************************************************************
-6. 显示每次编译的信息，如build_id， 状态成功或失败......
+6. time series:显示每次编译的信息，如build_id， 状态成功或失败......
+
+SELECT UNIX_TIMESTAMP(time) as time_sec, build_id,job_name,result from jenkins.jobsInfo 
+WHERE job_name="monitor_job_result"
+
+***********************************************************************************************************
+********************************************************************************************************
+7.time series, 查看slave qu 排队的信息
+SELECT UNIX_TIMESTAMP(time) as time_sec, Qu from jenkins.slaves;
 
 
-
-
+***********************************************************************************************************
+************************************************************************************************************
+8.time series, 查看 slave 的在线个数,总共的个数，offline的个数信息
+query1:
+SELECT UNIX_TIMESTAMP(time) as time_sec, online from jenkins.slaves;
+query2:
+SELECT UNIX_TIMESTAMP(time) as time_sec, total from jenkins.slaves;
+query3:
+SELECT UNIX_TIMESTAMP(time) as time_sec, offline from jenkins.slaves;
