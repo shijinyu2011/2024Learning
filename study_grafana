@@ -1,4 +1,4 @@
-1. bar chart: jenkins (x:build_id,y:duration)
+1. bar chart: jenkins (x:build_id,y:duration) 查看每次编译的时间
 
 select * from (SELECT duration, build_id FROM jenkins.jobsInfo WHERE job_name = 'monitor_job_result' ORDER BY build_id desc LIMIT 10 ) 
 as sub_query ORDER by build_id asc;
@@ -52,7 +52,7 @@ select * from (SELECT duration, build_id FROM jenkins.jobsInfo WHERE job_name = 
 
 ******************************************************************************
 ********************************************************************************
-2. add time series, look at user login time
+2. add time series, look at user login time  查看用户登录次数
 SELECT  $__timeGroup(logintime,'10m') as time_sec, count(user) as user1
   FROM jenkins.operate_time
   WHERE $__timeFilter(logintime) AND user = "user1"
@@ -102,6 +102,32 @@ mysql> select * from operate_time order by id limit 2;
 mysql> 
 ***************************************************************************************************
 ***************************************************************************************************
+3.jenkins job build num per 10m, time series  10分钟跑了几次build
+SELECT  $__timeGroup(time,'10m') as time_sec, count(build_id) as monitor2
+  FROM jenkins.jobsInfo 
+  WHERE $__timeFilter(time) AND job_name = "monitor2_job_result"
+  GROUP BY time_sec;
+mysql> select * from jobsInfo  order by id desc limit 2;
+
++------+---------------------+----------+---------+---------------------+---------------------+----------+
+
+| id   | job_name            | build_id | result  | time                | end_time            | duration |
+
++------+---------------------+----------+---------+---------------------+---------------------+----------+
+
+| 4700 | monitor2_job_result |     2336 | SUCCESS | 2024-03-15 11:38:04 | 2024-03-15 11:38:04 |     NULL |
+
+| 4699 | monitor_job_result  |     2375 | SUCCESS | 2024-03-15 11:36:04 | 2024-03-15 11:36:04 |        6 |
+
++------+---------------------+----------+---------+---------------------+---------------------+----------+
+
+2 rows in set (0.01 sec)
+
+
+
+mysql>***************************************************************************************************************
+***************************************************************************************************
+
 
 
 
