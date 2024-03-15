@@ -1,4 +1,49 @@
-bar chart: jenkins (x:build_id,y:duration)
+1. bar chart: jenkins (x:build_id,y:duration)
+mysql> select * from jobsInfo  where job_name="monitor_job_result" ORDER BY build_id desc LIMIT 2;
+
++------+--------------------+----------+---------+---------------------+---------------------+----------+
+
+| id   | job_name           | build_id | result  | time                | end_time            | duration |
+
++------+--------------------+----------+---------+---------------------+---------------------+----------+
+
+| 4680 | monitor_job_result |     2368 | SUCCESS | 2024-03-15 11:01:04 | 2024-03-15 11:01:04 |        6 |
+
+| 4677 | monitor_job_result |     2367 | SUCCESS | 2024-03-15 10:56:04 | 2024-03-15 10:56:04 |        6 |
+
++------+--------------------+----------+---------+---------------------+---------------------+----------+
+
+2 rows in set (0.02 sec)
+
+
+
+mysql> desc jobsInfo;
+
++----------+--------------+------+-----+---------+----------------+
+
+| Field    | Type         | Null | Key | Default | Extra          |
+
++----------+--------------+------+-----+---------+----------------+
+
+| id       | int          | NO   | PRI | NULL    | auto_increment |
+
+| job_name | varchar(128) | YES  |     | NULL    |                |
+
+| build_id | int          | YES  |     | NULL    |                |
+
+| result   | longtext     | YES  |     | NULL    |                |
+
+| time     | datetime     | YES  |     | NULL    |                |
+
+| end_time | datetime     | YES  |     | NULL    |                |
+
+| duration | int          | YES  |     | NULL    |                |
+
++----------+--------------+------+-----+---------+----------------+
+
+7 rows in set (0.00 sec)
+
 
 select * from (SELECT duration, build_id FROM jenkins.jobsInfo WHERE job_name = 'monitor_job_result' ORDER BY build_id desc LIMIT 10 ) as sub_query ORDER by build_id asc;
 
+2.
