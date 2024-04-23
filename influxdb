@@ -1,0 +1,6 @@
+192.168.50.182 jinyu账号，influxdb docker
+docker  exec container_id /bin/bash 
+ 进入数据库 $ influx --database nds
+
+> use autobuild;
+ > select * from autobuild order by time limit 50;
