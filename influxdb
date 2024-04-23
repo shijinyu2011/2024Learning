@@ -1,6 +1,124 @@
 192.168.50.182 jinyu账号，influxdb docker
+
+[jinyu@s121 common]$ curl -m 10 -s -XPOST "http://influxdb.nds.nextvpu.com:8086/write?db=nds"     
+  --data-binary "autobuild,case=gerrit-commit,job=anyany,dev=manager1,terr=0,ver=36152-p1-29958-any  id=29958,cerr=0,dur=0,log=\"v5/2024-04/preci/any/36152-p1-29958/gerrit-commit.log\""
+[jinyu@s121 common]$ echo $?
+0
+[jinyu@s121 common]$ date --date='@17138641067'
+Tue Feb  7 05:37:47 CST 2513
+[jinyu@s121 common]$
+
+
 docker  exec container_id /bin/bash 
  进入数据库 $ influx --database nds
 
 > use autobuild;
  > select * from autobuild order by time limit 50;
+> show databases;
+name: databases
+name
+----
+_internal
+nds
+autobuild
+git
+telegraf
+> use nds;
+Using database nds
+> select * from autobuild where job='anyany';
+name: autobuild
+time                case          cerr dev      dur id    job    log                                                   terr ver
+----                ----          ---- ---      --- --    ---    ---                                                   ---- ---
+1713864573529261507 gerrit-commit 0    manager1 0   29958 anyany v5/2024-04/preci/any/36152-p1-29958/gerrit-commit.log 0    36152-p1-29958-any
+1713864997186416963 gerrit-commit 0    manager1 0   29958 anyany v5/2024-04/preci/any/36152-p1-29958/gerrit-commit.log 0    36152-p1-29958-any
+> select * from autobuild where job='any' order by time desc limit 5;
+name: autobuild
+time                case          cerr dev      dur id    job log                                                            terr ver
+----                ----          ---- ---      --- --    --- ---                                                            ---- ---
+1713864106729447972 gerrit-commit 0    manager1 0   29958 any v5/2024-04/preci/any/36152-p1-29958/gerrit-commit.log          0    36152-p1-29958-any
+1713862295058330092 gerrit-commit 0    manager1 0   29958 any v5/2024-04/preci/any/36152-p1-29958/gerrit-commit.log          0    36152-p1-29958-any
+
+>
+> show measurements;
+name: measurements
+name
+----
+autobuild
+autotest
+usage
+> show tag keys;
+name: autobuild
+tagKey
+------
+case
+dev
+job
+terr
+ver
+
+name: autotest
+tagKey
+------
+author
+branch
+buildtype
+case
+dev
+job
+terr
+ver
+
+name: usage
+tagKey
+------
+case
+dev
+job
+ver
+> show field keys;
+name: autobuild
+fieldKey fieldType
+-------- ---------
+cerr     float
+dur      float
+id       float
+log      string
+
+name: autotest
+fieldKey fieldType
+-------- ---------
+cerr     float
+dur      float
+log      string
+retry    float
+> show tags;
+ERR: error parsing query: found tags, expected CONTINUOUS, DATABASES, DIAGNOSTICS, FIELD, GRANTS, MEASUREMENT, MEASUREMENTS, QUERIES, RETENTION, SERIES, SHARD, SHARDS, STATS, SUBSCRIPTIONS, TAG, USERS at line 1, char 6
+> show tag keys;
+name: autobuild
+tagKey
+------
+case
+dev
+job
+terr
+ver
+
+name: autotest
+tagKey
+------
+author
+branch
+buildtype
+case
+dev
+job
+terr
+ver
+
+name: usage
+tagKey
+------
+case
+dev
+job
+ver
