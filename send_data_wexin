@@ -1,0 +1,22 @@
+jinyushi@jinyushi MINGW32 ~/PycharmProjects/pythonProject/tracebacker (master)
+$ cat test_webhook.py
+import requests,datetime,re,time,sys
+
+#webHookTest="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=90fb25b1-e0b8-4e13-95ac-438cf359d883"
+webHookTest = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=b454bf1a-56cf-4315-937a-b3ede851755a"
+content = sys.argv[1]
+content = content + "  <<<<<<======= Please check it."
+print(f"content is {content}")
+#content = "test msg info. please ignore!"
+
+data = {
+        "msgtype": "markdown",
+
+        "markdown":{
+                "content": content
+            }
+        }
+
+headers = {"Content-Type": "application/json"}
+response = requests.post(webHookTest, headers=headers, json=data)
+jinyushi@jinyushi MINGW32 ~/PycharmProjects/pythonProject/tracebacker (master)
