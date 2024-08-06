@@ -1,0 +1,886 @@
+114 autobuild:
+
+ select count(cerr) from autotest where buildtype='daily' and cerr=0 and retry>1  and time >='2024-05-01T00:00:00Z' group by case
+
+ select count(cerr) from autotest where buildtype='daily' and cerr=0 and retry>1  group by case
+
+name: autotest
+tags: case=capture_tool_1080p25_480p25_imx291_binocular_python
+time count
+---- -----
+0    2
+
+name: autotest
+tags: case=capture_tool_1080p25_640_360p25_imx291_binocular_python
+time count
+---- -----
+0    2
+++++++++++++++++++++++++++++++++   time  +++++++++++++++++++++++++++++++++++++++++++++
+timedatectl set-time "2022-06-19 09:47:25"
+++++++++++++++++++++++++++++++++ jira  api  +++++++++++++++++++++++++++++++++++++++++++++++
+   
+
+
+jenkins@s117:~/workspace/sjy$ cat testjira.py
+#!/usr/bin/env python3
+
+
+from jira import JIRA
+
+jira = JIRA("http://support.nextvpu.com",basic_auth=('gerritadmin','12345678'))
+
+print(jira.projects())
+
+
+
+print("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+
+project = jira.project("SRI")
+
+print(project.name)
+print(project.lead)
+print(dir(project))
+
+
+
+
+print("=========================================")
+
+issue = jira.issue('SRI-5294')
+
+print(issue)
+
+
+print(dir(issue.fields))
+
+print(issue.fields)
+
+jql = 'project = SRI'
+
+issues = jira.search_issues(jql,0,9999,1,'','','')
+
+
+print(issues)
+jenkins@s117:~/workspace/sjy$
+
+
+[jinyu@s120 ci_run_select_models]$ curl -u gerritadmin:12345678  "http://support.nextvpu.com/rest/api/2/issue/SRI-5252?expand=changelog"
+
+http://support.nextvpu.com/rest/api/2/issue/SRI-5252?expand=changelog
+
+
+======================================= jira ======================
+
+[root@s117 jiraStatus]# cat jiracn.py
+import requests
+import datetime
+import os
+import json
+import copy
+from config import jiraStatusSetting
+
+my_file = os.path.realpath(__file__)
+my_path = os.path.dirname(my_file)
+
+from influxdbmain import nvpInfluxdb
+nds_influxdb=nvpInfluxdb()
+class nvpJira:
+    SEARCH_URL = "http://support.nextvpu.com/rest/api/2/search"
+    CHANGELOG_URL = "http://support.nextvpu.com/rest/api/2/issue/{}?expand=changelog"
+    USERGROUP_URL = "http://support.nextvpu.com/rest/api/2/groups/picker?maxResults=10000"
+    USERS_URL = "http://support.nextvpu.com/rest/api/2/group/member?groupname={}"
+    JIRA_STATUS_URL = "http://support.nextvpu.com/rest/api/2/status/"
+
+    def __init__(self):
+        self.jira_session=requests.session()
+        self.jira_session.auth=(jiraStatusSetting["jiraUser"], jiraStatusSetting["jiraPassword"])
+        self.header= {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
+        self.JIRA_ID_STATUS_DICT={}
+
+    def get_group(self):
+        group_list=[]
+        try:
+            res = self.jira_session.get(self.USERGROUP_URL, headers=self.header)
+        except Exception as e:
+            print(e)
+            print("[ERROR]: connect jira server failed!")
+            return group_list
+        json_data = res.json()
+        ex_grouplist=["chipsdk_qa_leader","chipsdk_rd_leader","chipsdk_pm"]
+        for group in json_data["groups"]:
+            if group["name"] not in ex_grouplist:
+                if group["name"] not in jiraStatusSetting["TEAMS"]:
+                    continue
+                group_list.append(group["name"])
+        return group_list
+
+    def get_jira_ID_status(self):
+        status_dict={}
+        try:
+            res = self.jira_session.get(self.JIRA_STATUS_URL, headers=self.header)
+        except Exception as e:
+            print(e)
+            print("[ERROR]: connect jira server failed!")
+            return status_dict
+        json_data = res.json()
+
+        for item in json_data:
+            #print("=============")
+            #print(item)
+            status_dict[item["id"]]=item["name"]
+        return status_dict
+
+    def get_users(self,group):
+        users_list=[]
+        try:
+            res = self.jira_session.get(self.USERS_URL.format(group), headers=self.header)
+        except Exception as e:
+            print(e)
+            print("[ERROR]: connect jira server failed!")
+            return users_list
+        json_data = res.json()
+        #print(json_data)
+        for item_list in json_data["values"]:
+            user_dict={}
+            for key in item_list:
+                if key == "name" or key == "key" or key == "emailAddress" or key == "displayName" or key == "active":
+                    user_dict[key]=item_list[key]
+            users_list.append(user_dict)
+        return users_list
+
+    def get_group_from_user(self,user):
+        ret_group=""
+        ret,group_list=nds_influxdb.get_groups()
+        available_group_list=[]
+        for group in group_list:
+            if nds_influxdb.is_user_in_group(user,group) == 0:
+                available_group_list.append(group)
+        if available_group_list:
+            if len(available_group_list) ==1:
+                ret_group = available_group_list[0]
+                #print(f"only one available group found {ret_group}")
+            else:
+                leader_group_list=[]
+                for item in available_group_list:
+                    if item.endswith("_pm") or item.endswith("_leader") or item.endswith("_supervisor"):
+                        leader_group_list.append(item)
+                sub_group_list=list(set(available_group_list) - set(leader_group_list))
+                if len(sub_group_list) == 0:
+                    ret_group = available_group_list[0]
+                elif len(sub_group_list) == 1:
+                    ret_group= sub_group_list[0]
+                else:
+                    print(f"[ERROR]: find {user} in multi common groups {sub_group_list}")
+                    #sys.exit(-1)
+        else:
+            print(f"[INFO]: {user} has not in any groups")
+
+        return ret_group
+
+    def add_issue_contributor(self,issue_contributors_data,issue_contributor_dict):
+        tmp_list=[]
+        find=False
+        for item in issue_contributors_data:
+            if item["key"] == issue_contributor_dict["key"]  and item["startProgress"] == issue_contributor_dict["startProgress"]:
+                item["endProgress"]=issue_contributor_dict["endProgress"]
+                item["duration"]=issue_contributor_dict["duration"]
+                find=True
+            tmp_list.append(item)
+        if find == False:
+            tmp_list.append(issue_contributor_dict)
+        return tmp_list
+
+    def get_all_project_issues(self,project):
+        issues_list=[]
+        i = 0
+        maxResults=1000
+        ret = 0
+        while True:
+            ret,ret_issue_list = self.get_issues(project,i,maxResults)
+            if ret == -1:
+                break
+            if ret_issue_list:
+                issues_list += ret_issue_list
+            else:
+                break
+            i += len(issues_list)
+            #break
+        return ret,issues_list
+
+    def get_issues(self,project,start_index,maxResults=1):
+        data = {"jql": f"project={project}", "startAt": start_index, "maxResults": maxResults, "fields": ["key"]}
+        #data = {"jql": f"project={project}  AND updated >= 2024-03-04 AND updated <= 2024-03-11", "startAt": start_index, "maxResults": maxResults,"fields": ["key"]}
+
+        try:
+            res = self.jira_session.post(self.SEARCH_URL, headers=self.header, data=json.dumps(data))
+        except Exception as e:
+            print(e)
+            print("[ERROR]: connect jira server failed!")
+            return -1, []
+        json_data = res.json()
+        #print(len(json_data["issues"]))
+        return 0, json_data["issues"]
+
+    def get_project_issues_from_time_range(self,project, start_time, end_time):
+        issues_list=[]
+        startAt=0
+        while True:
+            data = {"jql": f"project={project} AND updated >= {start_time} AND updated < {end_time}", "startAt": startAt, "maxResults": 1000,"fields": ["key"]}
+
+            try:
+                res = self.jira_session.post(self.SEARCH_URL, headers=self.header, data=json.dumps(data))
+            except Exception as e:
+                print(e)
+                print("[ERROR]: get_project_issues_from_time_range connect jira server failed!")
+                return -1, []
+            json_data = res.json()
+            if json_data.get("issues"):
+                issues = json_data["issues"]
+                issues_list += issues
+                startAt +=len(issues)
+            else:
+                break
+        return 0, issues_list
+
+    def get_issues_details(self,issues_list):
+        ret=0
+        issues_details=[]
+
+        for issue in issues_list:
+            #if int(issue["key"].split('-')[1]) != 4285: #or int(issue["key"].split('-')[1]) < 4670: # "SRI-4529" :
+            #    continue
+            #else:
+
+            if False:
+                jira_compare_list=[]
+                with open("jira.log", "r") as file:
+                    line=file.readline()
+                    while line:
+                        jira_compare_list.append(line.strip())
+                        line=file.readline()
+                    if issue["key"] not in jira_compare_list:
+                        continue
+                file.close()
+
+            print(issue["key"])
+            ret,issue_detail=self.get_issue_details(issue)
+
+            if ret == -1:
+                break
+            else:
+                issue_comments_data=issue_detail.get("issue_comments_data")
+                issue_changelog_data=issue_detail.get("issue_changelog_data")
+                #print("issue_comments_data & issue_changelog_data", issue_comments_data,issue_changelog_data)
+                if (issue_comments_data == []) and (issue_changelog_data == []) :
+                    issue_detail["event"]="taskCreated"
+                    issue_detail["init"]='1'
+                    issue_detail["last"]='1'
+                    issues_details.append(issue_detail)
+                    #print(issue_detail)
+                else:
+                    issue_history=copy.deepcopy(issue_detail)
+                    issue_history["status"]="待办"
+                    issue_history["status_field"]=issue_history["status"]
+
+                    issue_history["latest_update_time"]=issue_history["createtime"]
+                    issue_history["latest_update_unixtime"]=issue_history["create_unixtime"]
+                    issue_history["latest_update_datetime"]=str((datetime.datetime.strptime(issue_history["createtime"], "%Y-%m-%d %H:%M:%S") + datetime.timedelta(microseconds=issue_history["index"])).strftime('%Y-%m-%dT%H:%M:%S.%fZ-8:00'))
+
+                    issue_history["moreinfo"]=""
+                    issue_history["total_work_hour"]=0
+                    issue_history["total_work_unixtime"]=0
+                    issue_history["delay"]=0
+                    issue_history["closedtime"] = ""
+                    issue_history["closed_unixtime"] = 0.0
+                    issue_history["event"]="taskCreated"
+                    issue_history["init"]='1'
+                    issue_history["last"]='0'
+                    if issue_changelog_data:
+                        found_estimatedTime_changed=False
+                        found_assignee_changed=False
+                        for issue_changelog_dict in issue_changelog_data:
+                            if issue_changelog_dict.get("operate") == "estimatedTimeChanged" and found_estimatedTime_changed == False:
+                                if issue_changelog_dict["from"] == "":
+                                    issue_changelog_dict["from"] = 0
+                                    #issue_changelog_dict["from"] = issue_changelog_dict["to"]
+                                issue_history["estimatedTime"]=int(issue_changelog_dict["from"])
+                                if issue_history["estimatedTime"] == "":
+                                    issue_history["estimatedTime"]=0
+                                found_estimatedTime_changed = True
+
+                            if issue_changelog_dict.get("operate") == "assigneeChanged" and found_assignee_changed == False:
+                                issue_history["assignee"]=issue_changelog_dict["from"]
+                                issue_history["assignee_key"]=issue_changelog_dict["from"]
+                                issue_history["group"]=self.get_group_from_user(issue_history["assignee"])
+                                found_assignee_changed = True
+
+                    issue_history["leftHour"] = issue_history["estimatedTime"]
+
+                    issue_append=copy.deepcopy(issue_history)
+                    issues_details.append(issue_append)
+                    issue_history["init"]='0'
+                    all_list=issue_changelog_data+issue_comments_data
+                    all_list_sorted = sorted(all_list, key=lambda x: (x["create_unixtime"], x["index"]))
+
+                    #for i in range(len(all_list_sorted) -1):
+                    #    if (all_list_sorted[i]["operate"] == "statusChanged")  and (all_list_sorted[i]["create_unixtime"] == all_list_sorted[i+1]["create_unixtime"]):
+                    #        tmp=copy.deepcopy(all_list_sorted[i])
+                    #        all_list_sorted[i]=copy.deepcopy(all_list_sorted[i+1])
+                    #        all_list_sorted[i+1]=tmp
+                    #        print("------------------------", i )
+
+
+                    #print(all_list_sorted)
+                    #print("++++++++++++++++++++++++++++all_list_sorted+++++++++++++++++++++++++++++++++")
+                    estimatedTime_changed_times=0
+                    total_work_unixtime=0
+                    last_in_progress_unixtime=0
+                    last_in_progress_time=""
+                    last_to=""
+                    last_from=""
+                    reopen_num=0
+
+                    issue_history["startProgress"]=""
+                    issue_history["endProgress"]=""
+                    issue_history["duration_hour"] = 0
+                    for item in all_list_sorted:
+                        issue_history["moreinfo"]="1"
+                        duration_unixtime=0
+                        issue_history["latest_update_time"]=item["createtime"]
+                        issue_history["latest_update_unixtime"]=item["create_unixtime"]
+                        issue_history["index"]=item["index"]
+                        #if item["operate"] == "statusChanged":
+                        issue_history["latest_update_datetime"]=str((datetime.datetime.strptime(item["createtime"], "%Y-%m-%d %H:%M:%S") + datetime.timedelta(microseconds=issue_history["index"])).strftime('%Y-%m-%dT%H:%M:%S.%fZ-8:00'))
+                        #else:
+                        #    issue_history["latest_update_datetime"]=item["create_datetime"]
+
+                        issue_history["command"]=""
+                        issue_history["from"]=""
+                        issue_history["to"]=""
+                        issue_history["author"]=""
+
+                        reopen_num=0
+
+                        issue_detail["event"]=""
+                        issue_history["event"]=item["operate"]
+                        if item.get("command"):
+                            issue_history["command"]=item["command"]
+
+                        if item.get("from"):
+                            issue_history["from"]=item["from"]
+
+                        if item.get("to"):
+                            issue_history["to"]=item["to"]
+
+                        if item.get("to"):
+                            issue_history["to"]=item["to"]
+
+                        if item.get("author"):
+                            issue_history["author"]=item["author"]
+
+                        if item.get("comments"):
+                            issue_history["comments"]=item["comments"]
+
+                        #if item["operate"] == 'commentsCreated' or item["operate"] == 'commentsUpdated':
+                        #    if issue_history['status'] == "In Progress" or issue_history['status'] == "Resumed" or  issue_history['status'] == "处理中" :
+                        #        issue_history["startProgress"]=last_in_progress_time
+
+                        if item["operate"] == 'assigneeChanged':
+                            issue_history["assignee"]=item["to"]
+                            issue_history["assignee_key"]=item["to"]
+                            issue_history["group"]=self.get_group_from_user(issue_history["assignee"])
+
+                            issue_history["startProgress"]=""
+                            issue_history["endProgress"]=""
+                            issue_history["duration_hour"] = 0
+                            issue_history["duration_unixtime"] = 0
+                            issue_history["delayTime"]=0
+                            issue_history["total_work_hour"] = 0
+                            issue_history["total_work_unixtime"] = 0
+                            total_work_unixtime=0
+
+                            #if issue_history['status'] == "In Progress" or issue_history['status'] == "Resumed" or  issue_history['status'] == "处理中" :
+                            #    issue_history["startProgress"]=last_in_progress_time
+
+                        if item["operate"] == 'estimatedTimeChanged':
+                            issue_history["comments"]=f"estimated time changed from {item['from']} to {item['to']}"
+                            issue_history["estimatedTime"]=int(item["to"])
+                            if issue_history["estimatedTime"] == "":
+                                issue_history["estimatedTime"]=0
+                            estimatedTime_changed_times=estimatedTime_changed_times+1
+                            issue_history["estimatedTime_changed_times"]=estimatedTime_changed_times
+
+                            #if issue_history['status'] == "In Progress" or issue_history['status'] == "Resumed" or  issue_history['status'] == "处理中" :
+                            #    issue_history["startProgress"]=last_in_progress_time
+
+                        if item["operate"] == 'statusChanged':
+                            issue_history["comments"]=f"status changed from {item['from']} to {item['to']}"
+                            issue_history["status"]=item['to']
+                            issue_history["status_field"]=issue_history["status"]
+
+                            last_to = item['to']
+                            last_from = item['from']
+                            if item['to'] == "In Progress" or item['to'] == "Resumed" or  item['to'] == "处理中" :
+                                last_in_progress_unixtime=item["create_unixtime"]
+                                last_in_progress_time=item["createtime"]
+                                issue_history["startProgress"]=item["createtime"]
+                                issue_history["endProgress"]=""
+                                issue_history["duration_hour"] = 0
+
+                            if item['to'] == "Pause" or item['to'] == "Suspended" or item['to'] == "Resolved" or item['to'] == "已解决" or item['to'] == "完成":
+                                duration_unixtime = item["create_unixtime"] - last_in_progress_unixtime
+                                total_work_unixtime = total_work_unixtime + duration_unixtime
+                                issue_history["duration_unixtime"] = int(duration_unixtime )
+                                issue_history["duration_hour"] = int(duration_unixtime // 3600)
+                                issue_history["total_work_hour"] = int(total_work_unixtime // 3600)
+                                issue_history["total_work_unixtime"] = int(total_work_unixtime)
+
+                                issue_history["startProgress"]=last_in_progress_time
+                                issue_history["endProgress"]=item["createtime"]
+
+                            if item['to'] == "已关闭":
+                                issue_history["closedtime"] = item["createtime"]
+                                issue_history["closed_unixtime"] = item["create_unixtime"]
+                            else:
+                                issue_history["closedtime"] = ""
+                                issue_history["closed_unixtime"] = 0.0
+
+                            if item.get("command")  == "Reopen":
+                                reopen_num=1
+                                issue_history["startProgress"]=""
+                                issue_history["endProgress"]=""
+                                issue_history["duration_hour"] = 0
+                                issue_history["duration_unixtime"] = 0
+
+                            if item['to'] == "已关闭":
+                                if  issue_history["startProgress"]=="" and issue_history["endProgress"]=="":
+                                    print(f"[WARN]: {issue_history['key']} startProgress and endProgress is empty, set create time as default")
+                                    issue_history["startProgress"] = item["createtime"]
+                                    issue_history["endProgress"] = item["createtime"]
+                                    issue_history["duration_unixtime"] = 0
+                                    issue_history["duration_hour"] = 0
+
+                        delay_hour = issue_history["total_work_hour"] - int(issue_history["estimatedTime"])
+                        left_hour = int(issue_history["estimatedTime"]) - issue_history["total_work_hour"]
+                        delayed=0
+                        delayed_time=0
+                        if delay_hour > 0:
+                            delayed=1
+                            delayed_time=int(delay_hour)
+                        issue_history["delay"]=delayed
+                        issue_history["delayTime"]=delayed_time
+
+                        issue_history["leftHour"]=left_hour
+                        issue_history["reopen_num"]=reopen_num
+
+                        issue_append=copy.deepcopy(issue_history)
+                        issues_details.append(issue_append)
+
+                    issues_details[-1]["last"]='1'
+
+
+                    #print("+++++++++++++++++++issue_history++++++++++++++++++++++++++++++++++++++++++")
+                    #print(issue_history)
+
+        #print("===============================")
+        #print(issues_details)
+        #print("===============================")
+        return ret, issues_details
+
+    def get_issue_details(self,issue):
+        issue_data={}
+        key=issue["key"]
+        if not self.JIRA_ID_STATUS_DICT:
+            self.JIRA_ID_STATUS_DICT=self.get_jira_ID_status()
+        #print(self.JIRA_ID_STATUS_DICT)
+
+        try:
+            res=self.jira_session.get(self.CHANGELOG_URL.format(key),headers=self.header)
+        except Exception as e:
+            print("[ERROR]: get issue details failed!")
+            return -1
+        issue_dict=res.json()
+
+        latest_update_time=""
+        issue_data["key"]=key
+        issue_data["key_field"]=key
+        issue_data["duration_unixtime_lastupdate"]=0
+        issue_data["corp"]="nextvpu"
+        issue_data["owner"] = issue_dict['fields']['creator']['name']
+        issue_data["reporter"] = issue_dict['fields']['reporter']['name']
+        issue_data["summary"] = issue_dict['fields']['summary']
+        issue_data["createtime"]=issue_dict['fields']['created'][0:19].replace("T"," ")
+        issue_data["create_unixtime"]=datetime.datetime.strptime(issue_data["createtime"], "%Y-%m-%d %H:%M:%S").timestamp()
+        issue_data["create_datetime"]=str(datetime.datetime.strptime(issue_data["createtime"], "%Y-%m-%d %H:%M:%S").strftime('%Y-%m-%dT%H:%M:%S.000000Z-8:00'))
+        issue_data["description"]=issue_dict['fields']['description']
+        issue_data["status"]=self.JIRA_ID_STATUS_DICT[issue_dict['fields']['status']['id']]
+        issue_data["status_field"]=issue_data["status"]
+        issue_data["type"]=issue_dict['fields']['issuetype']['name']
+        if issue_dict['fields']['issuetype']['subtask']:
+            issue_data["subtask"]= 1
+        else:
+            issue_data["subtask"]= 0
+        issue_data["projectname"]=issue_dict['fields']['project']['key']
+
+        if issue_data.get("parent"):
+            issue_data["parent_task"]=issue_data["parent"]["key"]
+        else:
+            issue_data["parent_task"]=""
+
+        issue_data["upstream"]=""
+        issue_data["downstream"]=""
+        issue_data["relates"]=""
+        issue_depend_tasks={}
+        issue_upstream_list=[]
+        issue_downstream_list=[]
+        issue_relates_list=[]
+        if issue_dict['fields'].get("issuelinks"):
+            for item_link in issue_dict['fields']["issuelinks"]:
+                item_type_str=""
+                item_type_key=""
+                item_type_value=""
+                if item_link.get("outwardIssue"):
+                    item_type_str=item_link["type"]["outward"]
+                    item_type_value=item_link["outwardIssue"]["key"]
+
+                elif item_link.get("inwardIssue"):
+                    item_type_str=item_link["type"]["inward"]
+                    item_type_value=item_link["inwardIssue"]["key"]
+
+                if item_type_str == "is blocked by":
+                    item_type_key="downstream"
+                    if item_type_value:
+                        issue_downstream_list.append(item_type_value)
+                elif item_type_str == "blocks":
+                    item_type_key="upstream"
+                    if item_type_value:
+                        issue_upstream_list.append(item_type_value)
+                elif item_type_str == "relates to":
+                    item_type_key="relates"
+                    if item_type_value:
+                        issue_relates_list.append(item_type_value)
+
+            if issue_upstream_list:
+                issue_data["upstream"]=" ".join(issue_upstream_list)
+            if issue_downstream_list:
+                issue_data["downstream"]=" ".join(issue_downstream_list)
+            if issue_relates_list:
+                issue_data["relates"]=" ".join(issue_relates_list)
+
+        issue_data["index"]=1
+
+        subtasks=[]
+        for subtask in issue_dict['fields']['subtasks']:
+            subtasks.append(subtask["key"])
+        issue_data["subtasks"]=" ".join(subtasks)
+        issue_data["module"]=""
+        if issue_dict['fields'].get("customfield_10700"):
+            issue_data["module"]=issue_dict['fields']['customfield_10700'].get("value")
+        issue_data["board"] = ""
+        if issue_dict['fields'].get("customfield_10600"):
+            board_list=[]
+            for item in issue_dict['fields']['customfield_10600']:
+                board_list.append(item.get("value"))
+            issue_data["board"]=" ".join(board_list)
+        issue_data["customer"]=""
+        if issue_dict['fields'].get("customfield_10801"):
+            issue_data["customer"]=issue_dict['fields']['customfield_10801'].get("value")
+        changelogs=issue_dict['changelog']['histories']
+        assignee = ""
+        if issue_dict['fields']['assignee']:
+            assignee=issue_dict['fields']['assignee']['key']
+        issue_data["assignee"] = assignee
+        issue_data["assignee_key"] = issue_data["assignee"]
+
+        issue_data["group"]=self.get_group_from_user(issue_data["assignee"])
+
+        issue_comments_data = []
+        issue_comments_dict = {}
+
+        comments=issue_dict['fields']['comment']['comments']
+        comment_index=100000
+        for comment in comments:
+            issue_comments_dict = {}
+            if comment.get("author"):
+                comment_author=comment["author"]["name"]
+            else:
+                comment_author=""
+            if  comment_author == "gerritadmin":
+                continue
+            comment_index=comment_index+1
+            issue_comments_dict["index"]=comment_index
+            issue_comments_dict["key"] = issue_data["key"]
+            issue_comments_dict["operate"]=""
+            issue_comments_dict["command"]=""
+            issue_comments_dict["author"]=comment_author
+            if comment["updated"][0:19].replace("T"," ") == comment["created"][0:19].replace("T"," "):
+                issue_comments_dict["operate"]="commentsCreated"
+                issue_comments_dict["command"]="create comments"
+                issue_comments_dict["createtime"]=comment["created"][0:19].replace("T"," ")
+                issue_comments_dict["create_unixtime"]=datetime.datetime.strptime(issue_comments_dict["createtime"], "%Y-%m-%d %H:%M:%S").timestamp()
+                issue_comments_dict["create_datetime"]=str(datetime.datetime.strptime(issue_comments_dict["createtime"], "%Y-%m-%d %H:%M:%S").strftime('%Y-%m-%dT%H:%M:%S.000000Z-8:00'))
+            else:
+                issue_comments_dict["operate"]="commentsUpdated"
+                issue_comments_dict["command"]="update comments"
+                issue_comments_dict["createtime"]=comment["updated"][0:19].replace("T"," ")
+                issue_comments_dict["create_unixtime"]=datetime.datetime.strptime(issue_comments_dict["createtime"], "%Y-%m-%d %H:%M:%S").timestamp()
+                issue_comments_dict["create_datetime"]=str(datetime.datetime.strptime(issue_comments_dict["createtime"], "%Y-%m-%d %H:%M:%S").strftime('%Y-%m-%dT%H:%M:%S.000000Z-8:00'))
+
+            issue_comments_dict["comments"] = comment["body"]
+
+            issue_comments_data.append(issue_comments_dict)
+
+        issue_data["issue_comments_data"] = issue_comments_data
+        issue_data["latest_update_time"]=issue_data["createtime"]
+        issue_data["latest_update_unixtime"]=issue_data["create_unixtime"]
+        issue_data["latest_update_datetime"]=str((datetime.datetime.strptime(issue_data["createtime"], "%Y-%m-%d %H:%M:%S") + datetime.timedelta(microseconds=issue_data["index"])).strftime('%Y-%m-%dT%H:%M:%S.%fZ-8:00'))
+
+
+        duedate=""
+        if issue_dict['fields'].get("duedate"):
+            duedate=issue_dict['fields']['duedate']
+        issue_data["duedate"] = duedate
+
+        priority=""
+        if issue_dict['fields'].get("priority"):
+            priority=issue_dict['fields']['priority']['name']
+        issue_data["priority"] = priority
+
+        summary=""
+        if issue_dict['fields'].get("summary"):
+            summary=issue_dict['fields']['summary']
+        issue_data["summary"] = summary
+
+        timeoriginalestimate=""
+        if issue_dict['fields'].get('timeoriginalestimate'):
+            timeoriginalestimate=int(issue_dict['fields']['timeoriginalestimate']) // 3600
+        if timeoriginalestimate == "":
+            timeoriginalestimate=0
+        estimated_time_changed_times=0
+        issue_data["estimatedTime"] = timeoriginalestimate
+        issue_data["leftHour"] = issue_data["estimatedTime"]
+
+        issue_data["estimatedTime_changed_times"] = estimated_time_changed_times
+        issue_data["reopen_num"] = 0
+
+        issue_changelog_data = []
+        changelog_index=300000
+        for changelog in changelogs:
+            changelist=changelog["items"]
+            issue_changelog_dict={}
+            for changeitem in changelist:
+                issue_changelog_dict={}
+                if changeitem["field"] == "timeoriginalestimate" or changeitem["field"] == "status" or changeitem["field"] == "assignee":
+                    changelog_index=changelog_index+1
+                    issue_changelog_dict["index"]=changelog_index
+                    issue_changelog_dict["createtime"]=changelog["created"][0:19].replace("T"," ")
+                    issue_changelog_dict["create_unixtime"]=datetime.datetime.strptime(issue_changelog_dict["createtime"], "%Y-%m-%d %H:%M:%S").timestamp()
+                    issue_changelog_dict["create_datetime"]=str(datetime.datetime.strptime(issue_changelog_dict["createtime"], "%Y-%m-%d %H:%M:%S").strftime('%Y-%m-%dT%H:%M:%S.000000Z-8:00'))
+                    issue_changelog_dict["key"]=key
+                    #print(key)
+                    if changelog.get("author"):
+                        issue_changelog_dict["author"]=changelog["author"]["name"]
+                    else:
+                        issue_changelog_dict["author"]=""
+                        print(f"[WARN] mising author in {changelog}")
+
+
+                if changeitem["field"] == "timeoriginalestimate":
+                    if changeitem["fromString"] != None:
+                        issue_changelog_dict["from"]=str(int(changeitem["fromString"]) // 3600)
+                    else:
+                        issue_changelog_dict["from"]=""
+
+                    issue_changelog_dict["to"]=str(int(changeitem["toString"]) // 3600)
+                    issue_changelog_dict["operate"]="estimatedTimeChanged"
+                    issue_changelog_dict["command"]="change estimated time"
+                    issue_changelog_dict["comments"]=f"Estimated time changed from {issue_changelog_dict['from']} to {issue_changelog_dict['to']}h"
+
+                if changeitem["field"] == "status" or changeitem["field"] == "assignee":
+                    if changeitem["field"] == "status":
+                        issue_changelog_dict["operate"]="statusChanged"
+                        issue_changelog_dict["from"]=self.JIRA_ID_STATUS_DICT[changeitem["from"]]
+                        issue_changelog_dict["to"]=self.JIRA_ID_STATUS_DICT[changeitem["to"]]
+
+                        if issue_changelog_dict["from"] == "To Do" and  issue_changelog_dict["to"] == "Approved":
+                            issue_changelog_dict["command"]="Approved"
+
+                        elif (issue_changelog_dict["from"] == "待办" ) and  issue_changelog_dict["to"] == "处理中":
+                            issue_changelog_dict["command"]="Start"
+                        elif (issue_changelog_dict["from"] == "处理中" ) and  issue_changelog_dict["to"] == "Suspended":
+                            issue_changelog_dict["command"]="Suspend"
+                        elif issue_changelog_dict["from"] == "Suspended" and  issue_changelog_dict["to"] == "Resumed":
+                            issue_changelog_dict["command"]="Resume"
+                        elif issue_changelog_dict["from"] == "Suspended" and  issue_changelog_dict["to"] == "Canceled":
+                            issue_changelog_dict["command"]="Cancel"
+                        elif issue_changelog_dict["from"] == "Resumed" and  issue_changelog_dict["to"] == "Suspended":
+                            issue_changelog_dict["command"]="Suspend"
+                        elif issue_changelog_dict["from"] == "Resumed" and  issue_changelog_dict["to"] == "Resolved":
+                            issue_changelog_dict["command"]="Resolve"
+                        elif issue_changelog_dict["from"] == "Resumed" and  issue_changelog_dict["to"] == "已解决":
+                            issue_changelog_dict["command"]="Resolve"
+                        elif issue_changelog_dict["from"] == "Cancel" and  issue_changelog_dict["to"] == "待办":
+                            issue_changelog_dict["command"]="Restart"
+                        elif (issue_changelog_dict["from"] == "处理中" ) and  issue_changelog_dict["to"] == "已解决":
+                            issue_changelog_dict["command"]="Resolve"
+
+                        elif (issue_changelog_dict["from"] == "处理中" ) and  issue_changelog_dict["to"] == "已解决":
+                            issue_changelog_dict["command"]="Resolve"
+
+
+                        elif (issue_changelog_dict["from"] == "已解决" ) and  issue_changelog_dict["to"] == "已关闭":
+                            issue_changelog_dict["command"]="Close"
+                        elif (issue_changelog_dict["from"] == "已关闭" ) and  issue_changelog_dict["to"] == "重新打开":
+                            issue_changelog_dict["command"]="Reopen"
+                        elif (issue_changelog_dict["from"] == "重新打开" ) and  issue_changelog_dict["to"] == "处理中":
+                            issue_changelog_dict["command"]="Start"
+
+                        elif issue_changelog_dict["to"] == "待办":
+                            issue_changelog_dict["command"]="To Do"
+
+                        #SMAR project old status 完成
+                        elif (issue_changelog_dict["from"] == "处理中" ) and  issue_changelog_dict["to"] == "完成":
+                            issue_changelog_dict["command"]="Resolve"
+                        #SMAR project old status 完成
+                        elif (issue_changelog_dict["from"] == "完成" ) and  issue_changelog_dict["to"] == "已关闭":
+                            issue_changelog_dict["command"]="Close"
+
+                        elif (issue_changelog_dict["from"] == "To Do" or issue_changelog_dict["from"] == "In Progress") and  issue_changelog_dict["to"] == "Done":
+                            issue_changelog_dict["command"]="Done"
+                        elif issue_changelog_dict["from"] == "Done" and  issue_changelog_dict["to"] == "已关闭":
+                            issue_changelog_dict["command"]="Close"
+                        elif issue_changelog_dict["from"] == "Approved" and  issue_changelog_dict["to"] == "In Progress":
+                            issue_changelog_dict["command"]="Start"
+                        elif issue_changelog_dict["from"] == "In Progress" and  (issue_changelog_dict["to"] == "Pause" or issue_changelog_dict["to"] == "Suspended"):
+                            issue_changelog_dict["command"]="Suspend"
+
+
+                        elif issue_changelog_dict["from"] == "Pause" and  issue_changelog_dict["to"] == "In Progress":
+                            issue_changelog_dict["command"]="Resume"
+                        elif issue_changelog_dict["from"] == "In Progress" and  issue_changelog_dict["to"] == "COSIGN":
+                            issue_changelog_dict["command"]="COSIGN"
+
+                        elif (issue_changelog_dict["from"] == "处理中" ) and  issue_changelog_dict["to"] == "COSIGN":
+                            issue_changelog_dict["command"]="COSIGN"
+
+                        elif issue_changelog_dict["from"] == "CROSS CHECK" and  issue_changelog_dict["to"] == "COSIGN":
+                            issue_changelog_dict["command"]="COSIGN"
+                        elif issue_changelog_dict["from"] == "CROSS CHECK" and  issue_changelog_dict["to"] == "COSIGN":
+                            issue_changelog_dict["command"]="COSIGN"
+                        elif issue_changelog_dict["from"] == "COSIGN" and  issue_changelog_dict["to"] == "Resolved":
+                            issue_changelog_dict["command"]="Resolve"
+                        elif issue_changelog_dict["from"] == "In Progress" and  issue_changelog_dict["to"] == "CROSS CHECK":
+                            issue_changelog_dict["command"]="CROSS CHECK"
+                        elif issue_changelog_dict["from"] == "Resolve" and  issue_changelog_dict["to"] == "Reopened":
+                            issue_changelog_dict["command"]="Reopened"
+                        elif issue_changelog_dict["from"] == "Resolve" and  issue_changelog_dict["to"] == "Reopened":
+                            issue_changelog_dict["command"]="Reopened"
+
+                        elif issue_changelog_dict["from"] == "Reopened" and  issue_changelog_dict["to"] == "Under Review":
+                            issue_changelog_dict["command"]="Under Review"
+
+                        elif issue_changelog_dict["from"] == "In Progress" and  issue_changelog_dict["to"] == "Resolved":
+                            issue_changelog_dict["command"]="Resolve"
+
+                        elif issue_changelog_dict["from"] == "Resolved" and  issue_changelog_dict["to"] == "已关闭":
+                            issue_changelog_dict["command"]="Closed"
+                            #issue_data["ClosedTime"]=issue_changelog_dict["created"]
+                            #issue_data["ClosedTimestamp"] = datetime.datetime.strptime(issue_data["ClosedTime"], "%Y-%m-%d %H:%M:%S").timestamp()
+                            #print(issue_data["ClosedTimestamp"] , "hjkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk")
+
+                        elif issue_changelog_dict["from"] == "已关闭" and  issue_changelog_dict["to"] == "To Do":
+                            issue_changelog_dict["command"]="Reopen"
+
+                        elif issue_changelog_dict["from"] == "已关闭" and  issue_changelog_dict["to"] == "Reopened":
+                            issue_changelog_dict["command"]="ReOpen"
+                        elif issue_changelog_dict["from"] == "Reopened" and  issue_changelog_dict["to"] == "In Progress":
+                            issue_changelog_dict["command"]="Start"
+                        elif issue_changelog_dict["from"] == "Reopened" and  issue_changelog_dict["to"] == "To Do":
+                            issue_changelog_dict["command"]="To Do"
+
+                        elif issue_changelog_dict["to"] == "Rejected" or issue_changelog_dict["to"] == "Canceled":
+                            issue_changelog_dict["command"]="Cancel"
+                        elif issue_changelog_dict["from"] == "Rejected" and  issue_changelog_dict["to"] == "To Do":
+                            issue_changelog_dict["command"]="Restart"
+
+                        elif issue_changelog_dict["from"] == "Under Review" and  issue_changelog_dict["to"] == "In Review":
+                            issue_changelog_dict["command"]="Reviewing"
+
+                        elif issue_changelog_dict["from"] == "In Review" and  issue_changelog_dict["to"] == "Approved":
+                            issue_changelog_dict["command"]="Approve"
+
+                        elif issue_changelog_dict["from"] == "To Do" and  issue_changelog_dict["to"] == "Under Review":
+                            issue_changelog_dict["command"]="Under Review"
+
+                        elif issue_changelog_dict["from"] == "新建" and  issue_changelog_dict["to"] == "To Do":
+                            issue_changelog_dict["command"]="To Do"
+
+                        elif issue_changelog_dict["from"] == "In Progress" and  issue_changelog_dict["to"] == "Under Review":
+                            issue_changelog_dict["command"]="Under Review"
+
+                        elif issue_changelog_dict["from"] == "To Do" and  issue_changelog_dict["to"] == "In Progress":
+                            issue_changelog_dict["command"]="Start"
+
+                        elif issue_changelog_dict["from"] == "Canceled" and  issue_changelog_dict["to"] == "To Do":
+                            issue_changelog_dict["command"]="To Do"
+
+                        if issue_changelog_dict.get("command"):
+                            issue_changelog_dict["comments"]=f"Task {issue_changelog_dict['command']}"
+                        #else:
+                        #    print("[WARN]:+++++++++++++++++++++++++++")
+                            #print(issue_changelog_dict)
+
+                    if changeitem["field"] == "assignee":
+                        issue_changelog_dict["operate"]="assigneeChanged"
+                        issue_changelog_dict["from"]=changeitem["from"]
+                        if issue_changelog_dict["from"] == None:
+                            issue_changelog_dict["from"]=""
+
+                        issue_changelog_dict["to"]=changeitem["to"]
+                        if issue_changelog_dict["to"] == None:
+                            issue_changelog_dict["to"]=""
+
+                        issue_changelog_dict["command"]="change assignee"
+
+                        issue_changelog_dict["comments"]=f"Assignee changed {issue_changelog_dict['from']} to {issue_changelog_dict['to']}"
+
+                if issue_changelog_dict:
+                    issue_changelog_data.append(issue_changelog_dict)
+
+        issue_data["issue_changelog_data"]=issue_changelog_data
+
+        return 0, issue_data
+
+
+if __name__ == '__main__':
+    """
+    issues_list = []
+    datas=[]
+    i = 0
+
+    while i==0:
+        issue_list = get_issues(i)
+        if issue_list:
+            issues_list += issue_list
+        else:
+            break
+        i += 1
+
+    #issue_list = get_issues(i)
+    print(len(issues_list))
+    get_changelog()
+    save_datas()
+    """
+    #jira=ndsJira()
+    #ret,issues=jira.get_all_issues("SRI")
+    #ret, issues_details=jira.get_issues_details(issues)
+    print("_________________________________")
+    #print(issues_details)
+    print("_________________________________")
+
+[root@s117 jiraStatus]#
+
+
