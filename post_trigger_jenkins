@@ -1,0 +1,27 @@
+$ history |grep -i post
+  793  git commit -m "Fix post SDK error"
+ 1128  curl POST http://nds.nextvpu.com/view/Debug/job/test181/buildWithParameters
+ 1132  find . -type f|xargs grep -i "curl post"
+ 1140  curl -X POST --url http://nds.nextvpu.com/job/test181/buildWithParameters --data gerrit_event="created"
+ 1141  curl -X POST --url http://nds.nextvpu.com/job/test181/buildWithParameters --data gerrit_event="created"  --user jinyu:jinyu
+ 1142  curl -X POST --url http://nds.nextvpu.com/job/test181/buildWithParameters?token=111991b06aa694a7f01a857c47b4d5dddd --data gerrit_event="created"
+ 1143  curl -X POST --url http://nds.nextvpu.com/job/test181/buildWithParameters?token=111991b06aa694a7f01a857c47b4d5dddd --data gerrit_event="created"  --header 'content-type: application/x-www-form-urlencoded'
+ 1144  curl -X POST --url http://nds.nextvpu.com/job/test181/buildWithParameters --data gerrit_event="created"  --user jinyu:
+ 1145  curl -X POST --url http://nds.nextvpu.com/job/test181/buildWithParameters --data gerrit_event="created"  --user jinyu:111991b06aa694a7f01a857c47b4d5dddd
+ 1146  curl -X POST --url http://nds.nextvpu.com/job/test181/buildWithParameters?user=jinyu:111991b06aa694a7f01a857c47b4d5dddd --data gerrit_event="created"
+ 1147  curl -X POST --url http://nds.nextvpu.com/job/test181/buildWithParameters?user="jinyu:111991b06aa694a7f01a857c47b4d5dddd" --data gerrit_event="created"
+ 1148  curl -X POST --url http://nds.nextvpu.com/job/test181/buildWithParameters?user=jinyu\:111991b06aa694a7f01a857c47b4d5dddd --data gerrit_event="created"
+ 1149  curl -X POST --url http://nds.nextvpu.com/job/test181/buildWithParameters?token=111991b06aa694a7f01a857c47b4d5dddd --data gerrit_event="created"
+ 1150  curl -X POST  http://nds.nextvpu.com/job/test181/buildWithParameters?token=111991b06aa694a7f01a857c47b4d5dddd --data gerrit_event="created"
+ 1151  curl -X POST  http://nds.nextvpu.com/job/test181/buildWithParameters?token=111991b06aa694a7f01a857c47b4d5dddd --header 'content-type: application/x-www-form-urlencoded' --data gerrit_event="created"
+ 1152  curl -X POST  http://nds.nextvpu.com/job/test181/buildWithParameters?token=111991b06aa694a7f01a857c47b4d5dddd  --data gerrit_event="created"
+ 1153  curl -X POST  http://nds.nextvpu.com/job/test181/buildWithParameters?token=111991b06aa694a7f01a857c47b4d5dddd&gerrit_event="created"
+ 1154  curl -X POST  http://nds.nextvpu.com/job/test181/buildWithParameters?token=111991b06aa694a7f01a857c47b4d5dddd
+ 1155  curl -X POST  https://nds.nextvpu.com/job/test181/buildWithParameters?token=111991b06aa694a7f01a857c47b4d5dddd
+ 1156  curl -X POST  https://nds.nextvpu.com/job/test181/buildWithParameters
+ 1157  curl -X POST  https://192.168.50.114:8080/job/test181/buildWithParameters
+ 1158  curl -X POST  https://nds.nextvpu.com/job/test181/buildWithParameters
+ 1162  curl -X POST http://nds.nextvpu.com/job/test181/buildWithParameters?user=jinyu:111991b06aa694a7f01a857c47b4d5dddd --data gerrit_event="created"
+ 1163  curl -X POST http://nds.nextvpu.com/job/test181/buildWithParameters --user  jinyu:111991b06aa694a7f01a857c47b4d5dddd --data gerrit_event="created"
+ 1164  history |grep post
+ 1165  history |grep -i post
