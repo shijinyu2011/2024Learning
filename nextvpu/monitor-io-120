@@ -1,0 +1,77 @@
+
+/root/monitor_io/
+
+[root@s120 monitor_io]# cat monitor_io_120.sh
+#!/bin/bash
+
+
+#writeSpeed=0
+#ioUtil_sum=0
+#openfile_N=0
+
+#################################
+
+function postData(){
+
+curl -m 10 -s -XPOST "http://192.168.50.114:8086/write?db=nds" --data-binary  "ioPerf,project=ioStatus openfiles=${openfile_N},writeSpeed=${writeSpeed},ioUtil=${ioUtil_sum}"
+}
+
+
+function getIoUtil(){
+    file=$1
+
+    while read line
+      do
+       # echo "readline is $line"
+        if echo "$line" |grep "%";then
+            data=`echo $line|cut -d'%' -f2|sed 's/ //g'|sed 's/.\{3\}$//'`
+            echo "data is $data"
+            ioUtil_sum=$(expr $ioUtil_sum + $data)
+        fi
+      done < $file
+}
+
+function getWriteS(){
+    file=$1
+    disk_write_speed=`cat $file|grep "Actual DISK WRITE"|cut -d'|' -f2`
+
+   if echo $disk_write_speed |grep "M/s" ;then
+
+        echo "large speed"
+        writeSpeed=`echo "$disk_write_speed"|tr -cd '[:digit:]' |sed 's/.\{2\}$//'`
+        echo "last writeSpeed is $writeSpeed"
+
+    else
+
+       echo "slow speed"
+
+    fi
+
+    echo "disk_write_speed is $disk_write_speed"
+}
+
+
+while true;do
+
+  echo "....................................................start new loop ......................................."
+
+  writeSpeed=0
+  ioUtil_sum=0
+  openfile_N=0
+
+  openfile_N=`cat /proc/sys/fs/file-nr|cut  -f1`
+
+  #echo "openfile_N is $openfile_N end."
+  tmp_file="/root/monitor_io/tmp_file"
+  iotop  -o -b -n1 > $tmp_file
+
+  getWriteS $tmp_file
+  getIoUtil $tmp_file
+
+
+  echo "laster getWriteSpeed is $writeSpeed"
+  echo "last ioUtil_sum is $ioUtil_sum"
+
+  postData openfile_N writeSpeed ioUtil_sum
+  sleep 3
+done
