@@ -1,0 +1,55 @@
+
+jenkins@s182:~/sjytest$ cat multi_thread.py
+import threading
+import time,os
+import multiprocessing.pool as mpool
+
+def execute_gen(semaphore,cmd):
+    with semaphore:
+        print(f" cmd {cmd} start:")
+        time.sleep(10)
+        #ret="222"
+        ret=os.system(cmd)
+        if ret != 0 :
+            print(f"error: generate yml failed!")
+        print(f"cmd is {cmd} end!")
+
+
+
+params = [
+        "python3 Gen.py  'this is gengolen1.'",
+        "python3 Gen.py  'this is gengolen2.'",
+        "python3 Gen.py  'this is gengolen3.'",
+        "python3 Gen.py  'this is gengolen4.'",
+        "python3 Gen.py  'this is gengolen5.'",
+        "python3 Gen.py  'this is gengolen6.'",
+        "python3 Gen.py  'this is gengolen7.'",
+        "python3 Gen.py  'this is gengolen8.'",
+        "python3 Gen.py  'this is gengolen9.'",
+        "python3 Gen.py  'this is gengolen10.'",
+        "python3 Gen.py  'this is gengolen11.'",
+        ]
+
+threads = []
+now_time=time.strftime("%Y-%m-%d-%s")
+print(f"-------------> start time {now_time}")
+
+semaphore = threading.Semaphore(20)
+
+for param in params:
+
+    thread = threading.Thread(target=execute_gen,args=(semaphore,param,))
+    threads.append(thread)
+
+thread.start()
+
+for thread in threads:
+    thread.join()
+
+now_time=time.strftime("%Y-%m-%d-%s")
+print(f"-------------> end time {now_time}")
+
+print("finish")
+
+jenkins@s182:~/sjytest$
+
