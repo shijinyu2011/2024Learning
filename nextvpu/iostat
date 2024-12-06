@@ -1,0 +1,20 @@
+
+bash-4.4$ cat /home/baoyu/work/iostat/test.py
+import os
+import time
+import datetime
+start_time=time.time()
+with open("/home/baoyu/work/iostat/aa.txt","a")as f:
+    while True:
+        now=datetime.datetime.now()
+        print(now)
+        f.write(f"{now}\n")
+        iostrs=os.popen("iostat").read()
+        print(iostrs)
+        f.write(f"{iostrs}\n")
+        print("*"*50)
+        f.write(f"****************\n")
+        time.sleep(3)
+        if time.time()-start_time>7200:
+            break
+bash-4.4$
