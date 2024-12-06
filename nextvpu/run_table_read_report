@@ -1,0 +1,67 @@
+yiguo.huang@nextvpu-SYS-4028GR-TR2:~/nds_table_reader_workspace/workspace$ cat run_report_table_reader.sh
+#!/bin/bash
+set -ex
+
+source /algdata01/yiguo.huang/anaconda3/bin/activate
+
+conda activate readerocr
+
+golden_path="/algdata01/yiguo.huang/NextVPU/Golden_Images/GT/POST/"
+input_path=$1
+
+# python3 /algdata01/yiguo.huang/nds_table_reader_workspace/workspace/report_for_tableReader/bankNotesOCREvalHYG.py   /algdata01/yiguo.huang/nds_table_reader_workspace/workspace/report_for_tableReader/ /algdata01/yiguo.huang/NextVPU/Golden_Images/GT/POST/
+# POST
+python3 /algdata01/yiguo.huang/nds_table_reader_workspace/workspace/bankNotesOCREvalHYG.py /algdata01/yiguo.huang/nds_table_reader_workspace/workspace/report_for_tableReader/ /algdata01/yiguo.huang/NextVPU/Golden_Images/GT/POST/
+# MITSUI
+python3 /algdata01/yiguo.huang/nds_table_reader_workspace/workspace/bankNotesOCREvalHYG.py /algdata01/yiguo.huang/nds_table_reader_workspace/workspace/report_for_tableReader/ /algdata01/yiguo.huang/NextVPU/Golden_Images/GT/MITSUI/
+
+
+
+conda deactivate
+
+________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________
+____________________________________________________________________________________________________________________________________
+
+yiguo.huang@nextvpu-SYS-4028GR-TR2:~/nds_table_reader_workspace/workspace$ cat run_report_table_reader.sh
+#!/bin/bash
+set -ex
+
+source /algdata01/yiguo.huang/anaconda3/bin/activate
+
+conda activate readerocr
+
+golden_path="/algdata01/yiguo.huang/NextVPU/Golden_Images/GT/POST/"
+input_path=$1
+
+# python3 /algdata01/yiguo.huang/nds_table_reader_workspace/workspace/report_for_tableReader/bankNotesOCREvalHYG.py   /algdata01/yiguo.huang/nds_table_reader_workspace/workspace/report_for_tableReader/ /algdata01/yiguo.huang/NextVPU/Golden_Images/GT/POST/
+# POST
+python3 /algdata01/yiguo.huang/nds_table_reader_workspace/workspace/bankNotesOCREvalHYG.py /algdata01/yiguo.huang/nds_table_reader_workspace/workspace/report_for_tableReader/ /algdata01/yiguo.huang/NextVPU/Golden_Images/GT/POST/
+# MITSUI
+python3 /algdata01/yiguo.huang/nds_table_reader_workspace/workspace/bankNotesOCREvalHYG.py /algdata01/yiguo.huang/nds_table_reader_workspace/workspace/report_for_tableReader/ /algdata01/yiguo.huang/NextVPU/Golden_Images/GT/MITSUI/
+
+
+
+conda deactivate
+
+yiguo.huang@nextvpu-SYS-4028GR-TR2:~/nds_table_reader_workspace/workspace$ cat run_report_table_reader_linux.sh
+#!/bin/bash
+set -ex
+source /algdata01/yiguo.huang/anaconda3/bin/activate
+
+conda activate readerocr
+
+golden_path="/algdata01/yiguo.huang/NextVPU/Golden_Images/GT/POST/"
+input_path="/algdata01/yiguo.huang/nds_table_reader_workspace/workspace/nightly-tableReader-linux/"
+
+# python3 /algdata01/yiguo.huang/nds_table_reader_workspace/workspace/report_for_tableReader/bankNotesOCREvalHYG.py   /algdata01/yiguo.huang/nds_table_reader_workspace/workspace/report_for_tableReader/ /algdata01/yiguo.huang/NextVPU/Golden_Images/GT/POST/
+# POST
+python3 /algdata01/yiguo.huang/nds_table_reader_workspace/workspace/bankNotesOCREvalHYG.py $input_path /algdata01/yiguo.huang/NextVPU/Golden_Images/GT/POST/
+# MITSUI
+python3 /algdata01/yiguo.huang/nds_table_reader_workspace/workspace/bankNotesOCREvalHYG.py $input_path /algdata01/yiguo.huang/NextVPU/Golden_Images/GT/MITSUI/
+
+
+
+conda deactivate
+
+yiguo.huang@nextvpu-SYS-4028GR-TR2:~/nds_table_reader_workspace/workspace$
+
