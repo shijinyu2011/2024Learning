@@ -1,0 +1,18 @@
+
+114 autobuild:
+
+ select count(cerr) from autotest where buildtype='daily' and cerr=0 and retry>1  and time >='2024-05-01T00:00:00Z' group by case
+
+ select count(cerr) from autotest where buildtype='daily' and cerr=0 and retry>1  group by case
+
+name: autotest
+tags: case=capture_tool_1080p25_480p25_imx291_binocular_python
+time count
+---- -----
+0    2
+
+name: autotest
+tags: case=capture_tool_1080p25_640_360p25_imx291_binocular_python
+time count
+---- -----
+0    2
