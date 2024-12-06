@@ -1,0 +1,11 @@
+jira side:
+
+URLhttp://192.168.50.114:722/job/test181/buildWithParameters?token=111991b06aa694a7f01a857c47b4d5dddd&id=${issue.id}&key=${issue.key}
+Events
+Issue related events
+
+jenkins side:
+   jira trigger 插件，
+  全局配置jira url,
+  job 配置 jira trigger 事件
+  配置token
